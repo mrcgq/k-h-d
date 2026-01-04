@@ -1,47 +1,28 @@
-name: Build Windows Client
+name: Build executable
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    # 步骤 1: 检出您的代码
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    # 步骤 2: [核心修复] 使用 msys2/setup-msys2 Action 设置环境
-    # 这是比 setup-mingw 更稳定、更官方的方式
-    - name: Set up MSYS2
-      uses: msys2/setup-msys2@v2
+    - name: Set up MinGW
+      uses: egor-tensin/setup-mingw@v2
       with:
-        msystem: MINGW64
-        update: true
-        install: >-
-          mingw-w64-x86_64-gcc
+        version: latest
 
-    # 步骤 3: 编译资源文件
-    # 注意：必须在 msys2 shell 环境下运行
-    - name: Compile Resources
-      shell: msys2 {0}
-      run: |
-        windres -i resource.rc -o resource.o
+    - name: Compile resources
+      run: windres resource.rc -O coff -o resource.o
 
-    # 步骤 4: 编译主程序
-    # 同样在 msys2 shell 环境下运行
-    - name: Compile C Client
-      shell: msys2 {0}
-      run: |
-        gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o xlink-client.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
+    - name: Compile application
+      run: gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
 
-    # 步骤 5: 上传编译好的 exe 文件
-    - name: Upload Artifact
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: xlink-client-windows
-        path: xlink-client.exe
+        name: k-h-d-windows
+        path: k-h-d.exe
