@@ -1,28 +1,53 @@
-name: Build executable
+# GitHub Actions 工作流名称
+name: Build Windows Executable
 
-on: [push, pull_request]
+# 触发工作流的事件：在推送到主分支或有人发起拉取请求时运行
+on:
+  push:
+    branches: [ "main" ] # 您可以根据您的主分支名称修改，例如 "master"
+  pull_request:
+    branches: [ "main" ]
 
+# 定义工作流中的作业
 jobs:
+  # 定义一个名为 "build" 的作业
   build:
+    # 指定作业运行在最新版的 Windows 虚拟环境上
     runs-on: windows-latest
 
+    # 定义作业中的各个步骤
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      # 第一步：检出代码
+      # 使用官方的 checkout action 来获取您仓库的源代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up MinGW
-      uses: egor-tensin/setup-mingw@v2
-      with:
-        version: latest
+      # 第二步：设置 MinGW-w64 编译环境
+      # 使用社区的 action 来方便地安装和配置 GCC 工具链
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          version: latest # 使用最新版本的 MinGW
 
-    - name: Compile resources
-      run: windres resource.rc -O coff -o resource.o
+      # 第三步：编译资源文件
+      # 使用 windres 工具将 .rc 资源脚本编译成 .o 目标文件
+      - name: Compile resources
+        run: windres resource.rc -O coff -o resource.o
 
-    - name: Compile application
-      run: gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
+      # 第四步：编译应用程序源代码并链接
+      # 使用 gcc 编译 main.c 并将其与之前生成的 resource.o 链接起来
+      # -static: 静态链接，使EXE不依赖外部的运行时库
+      # -mwindows: 告诉链接器这是一个窗口程序，入口点是 WinMain
+      - name: Compile application
+        run: gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: k-h-d-windows
-        path: k-h-d.exe
+      # 第五步：上传编译好的程序作为产物
+      # 使用官方的 upload-artifact action 将生成的 k-h-d.exe 文件保存起来
+      # 这样您就可以在 Actions 页面下载它
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # 产物的名称
+          name: k-h-d-windows-executable
+          # 要上传的文件的路径
+          path: k-h-d.exe
