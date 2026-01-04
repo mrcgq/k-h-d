@@ -12,30 +12,34 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    # 步骤 1: 检出您的代码
     - uses: actions/checkout@v3
 
-    # 1. 设置 MinGW 编译环境
-    - name: Set up MinGW
-      uses: egor-tensin/setup-mingw@v2
+    # 步骤 2: [核心修复] 使用 msys2/setup-msys2 Action 设置环境
+    # 这是比 setup-mingw 更稳定、更官方的方式
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
       with:
-        platform: x64
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
 
-    # 2. 编译资源文件 (resource.rc -> resource.o)
-    # 注意：确保您的仓库里有 resource.rc 和 logo.ico
+    # 步骤 3: 编译资源文件
+    # 注意：必须在 msys2 shell 环境下运行
     - name: Compile Resources
+      shell: msys2 {0}
       run: |
         windres -i resource.rc -o resource.o
-      continue-on-error: false
 
-    # 3. 编译主程序 (main.c -> xlink-client.exe)
-    # 使用了 -mwindows 参数以隐藏控制台窗口
-    # 使用了 -static 确保不需要额外的 DLL
-    # 强制指定字符集为 UTF-8 输入，GBK 执行 (适配中文 Windows)
+    # 步骤 4: 编译主程序
+    # 同样在 msys2 shell 环境下运行
     - name: Compile C Client
+      shell: msys2 {0}
       run: |
         gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o xlink-client.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
 
-    # 4. 上传编译产物
+    # 步骤 5: 上传编译好的 exe 文件
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
