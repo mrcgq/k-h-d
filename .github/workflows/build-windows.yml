@@ -1,55 +1,39 @@
-# GitHub Actions 工作流名称
-name: Build Windows Executable
+name: Build Windows Executable (with Console for Debugging)
 
-# 触发工作流的事件
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
-# 定义工作流中的作业
 jobs:
   build:
-    # 指定作业运行在最新版的 Windows 虚拟环境上
     runs-on: windows-latest
-
-    # 定义作业中的各个步骤
     steps:
-      # 第一步：检出代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 第二步：设置 MSYS2 和 MinGW-w64 环境
-      # 使用官方的 msys2/setup-msys2 action，这是更稳定可靠的方式
       - name: Set up MSYS2
         uses: msys2/setup-msys2@v2
         with:
-          # 确保 MSYS2 环境是更新到最新的
           update: true
-          # 安装 64位的 MinGW GCC 工具链
+          # 我们继续编译64位版本，因为您的系统是64位
           install: >-
             mingw-w64-x86_64-toolchain
 
-      # 第三步：编译资源和应用程序
-      # 所有的编译命令都在 MSYS2 的 shell 环境中执行
-      - name: Compile and Link
-        # 指定使用 msys2 的 shell 来运行下面的命令
+      - name: Compile and Link (Console Debug Version)
         shell: msys2 {0}
         run: |
-          # 首先，使用 windres 编译资源脚本
           windres resource.rc -O coff -o resource.o
-          
-          # 接着，使用 gcc 编译 C 源代码，并与资源目标文件链接成最终的 EXE
-          # 注意：输出文件名改为了 bin/k-h-d.exe 以匹配您之前的结构
           mkdir -p bin
-          gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o bin/k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
+          # *** 关键改动 ***
+          # 1. 移除 -mwindows, 改为 -mconsole -> 这会创建一个带命令提示符窗口的程序
+          # 2. 移除 -s -> 这会保留调试符号，如果程序崩溃，错误信息可能更详细
+          gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -o bin/k-h-d-debug.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mconsole
 
-      # 第四步：上传编译好的程序作为产物
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          # 产物的名称
-          name: k-h-d-windows-executable
-          # 要上传的文件的路径
-          path: bin/k-h-d.exe
+          # 使用新名字以作区分
+          name: k-h-d-windows-debug-build
+          path: bin/k-h-d-debug.exe
