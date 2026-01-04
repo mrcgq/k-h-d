@@ -24,10 +24,9 @@ jobs:
 
       # 第二步：设置 MinGW-w64 编译环境
       # 使用社区的 action 来方便地安装和配置 GCC 工具链
+      # *** 注意：这里移除了 "with: version: latest" ***
       - name: Set up MinGW
         uses: egor-tensin/setup-mingw@v2
-        with:
-          version: latest # 使用最新版本的 MinGW
 
       # 第三步：编译资源文件
       # 使用 windres 工具将 .rc 资源脚本编译成 .o 目标文件
@@ -36,14 +35,11 @@ jobs:
 
       # 第四步：编译应用程序源代码并链接
       # 使用 gcc 编译 main.c 并将其与之前生成的 resource.o 链接起来
-      # -static: 静态链接，使EXE不依赖外部的运行时库
-      # -mwindows: 告诉链接器这是一个窗口程序，入口点是 WinMain
       - name: Compile application
         run: gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
 
       # 第五步：上传编译好的程序作为产物
       # 使用官方的 upload-artifact action 将生成的 k-h-d.exe 文件保存起来
-      # 这样您就可以在 Actions 页面下载它
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
