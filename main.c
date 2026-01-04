@@ -36,9 +36,10 @@
 #include <wincrypt.h>
 #include <wininet.h> 
 #include <io.h>
+#include "resource.h"  // <--- ★★★ 新增此行 ★★★
 
 // --- 常量与ID ---
-#define IDI_APP_ICON 101
+
 #define APP_VERSION "28.2 (Stable)"
 #define APP_TITLE "Xlink客户端 v" APP_VERSION
 
@@ -1229,4 +1230,3 @@ BOOL GenerateXrayConfigFile(int idx, const char* path) {
     fclose(f);
     return TRUE;
 }
-
