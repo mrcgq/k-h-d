@@ -1,16 +1,15 @@
 # GitHub Actions 工作流名称
 name: Build Windows Executable
 
-# 触发工作流的事件：在推送到主分支或有人发起拉取请求时运行
+# 触发工作流的事件
 on:
   push:
-    branches: [ "main" ] # 您可以根据您的主分支名称修改，例如 "master"
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
 # 定义工作流中的作业
 jobs:
-  # 定义一个名为 "build" 的作业
   build:
     # 指定作业运行在最新版的 Windows 虚拟环境上
     runs-on: windows-latest
@@ -18,32 +17,39 @@ jobs:
     # 定义作业中的各个步骤
     steps:
       # 第一步：检出代码
-      # 使用官方的 checkout action 来获取您仓库的源代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 第二步：设置 MinGW-w64 编译环境
-      # 使用社区的 action 来方便地安装和配置 GCC 工具链
-      # *** 注意：这里移除了 "with: version: latest" ***
-      - name: Set up MinGW
-        uses: egor-tensin/setup-mingw@v2
+      # 第二步：设置 MSYS2 和 MinGW-w64 环境
+      # 使用官方的 msys2/setup-msys2 action，这是更稳定可靠的方式
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          # 确保 MSYS2 环境是更新到最新的
+          update: true
+          # 安装 64位的 MinGW GCC 工具链
+          install: >-
+            mingw-w64-x86_64-toolchain
 
-      # 第三步：编译资源文件
-      # 使用 windres 工具将 .rc 资源脚本编译成 .o 目标文件
-      - name: Compile resources
-        run: windres resource.rc -O coff -o resource.o
+      # 第三步：编译资源和应用程序
+      # 所有的编译命令都在 MSYS2 的 shell 环境中执行
+      - name: Compile and Link
+        # 指定使用 msys2 的 shell 来运行下面的命令
+        shell: msys2 {0}
+        run: |
+          # 首先，使用 windres 编译资源脚本
+          windres resource.rc -O coff -o resource.o
+          
+          # 接着，使用 gcc 编译 C 源代码，并与资源目标文件链接成最终的 EXE
+          # 注意：输出文件名改为了 bin/k-h-d.exe 以匹配您之前的结构
+          mkdir -p bin
+          gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o bin/k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
 
-      # 第四步：编译应用程序源代码并链接
-      # 使用 gcc 编译 main.c 并将其与之前生成的 resource.o 链接起来
-      - name: Compile application
-        run: gcc -static -Wall -Wextra -std=c99 -finput-charset=UTF-8 -fexec-charset=GBK -Os -s -o k-h-d.exe main.c resource.o -luser32 -lkernel32 -lcomctl32 -lgdi32 -lcrypt32 -lws2_32 -lwininet -mwindows
-
-      # 第五步：上传编译好的程序作为产物
-      # 使用官方的 upload-artifact action 将生成的 k-h-d.exe 文件保存起来
+      # 第四步：上传编译好的程序作为产物
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           # 产物的名称
           name: k-h-d-windows-executable
           # 要上传的文件的路径
-          path: k-h-d.exe
+          path: bin/k-h-d.exe
