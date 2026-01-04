@@ -1,5 +1,31 @@
-// resource.rc
+#include <winver.h>
+#include "resource.h"
 
-#include "resource.h"  // <--- ★★★ 新增此行 ★★★
+// 定义应用程序图标
+// 请确保您的项目中有一个名为 "app.ico" 的图标文件
+IDI_ICON1 ICON "app.ico"
 
-IDI_APP_ICON ICON "logo.ico"
+// 定义版本信息资源
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,1
+PRODUCTVERSION  1,0,0,1
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0" // 语言：美国英语，字符集：Unicode
+        BEGIN
+            VALUE "CompanyName", "Your Company"
+            VALUE "FileDescription", "k-h-d Application"
+            VALUE "FileVersion", "1.0.0.1"
+            VALUE "InternalName", "k-h-d"
+            VALUE "LegalCopyright", "Copyright (C) 2024"
+            VALUE "OriginalFilename", "k-h-d.exe"
+            VALUE "ProductName", "k-h-d"
+            VALUE "ProductVersion", "1.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200 // 语言ID, 字符集ID (Unicode)
+    END
+END
