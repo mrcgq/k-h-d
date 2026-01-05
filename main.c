@@ -1069,7 +1069,55 @@ void ApplyFont(HWND hCtrl, HFONT hFont) { SendMessage(hCtrl, WM_SETFONT, (WPARAM
 BOOL CALLBACK ApplyFontToChildren(HWND hwnd, LPARAM lParam) { SendMessage(hwnd, WM_SETFONT, (WPARAM)lParam, TRUE); return TRUE; }
 int Scale(int x) { return MulDiv(x, g_dpi, 96); }
 void SaveConfig() { char p[SAFE_PATH_LEN]; snprintf(p, SAFE_PATH_LEN, "%s\\xlink_config.dat", g_exeDir); size_t sz = sizeof(int) + g_nodeCount * sizeof(NodeConfig); char* buf = (char*)malloc(sz); if (!buf) return; memcpy(buf, &g_nodeCount, sizeof(int)); memcpy(buf + sizeof(int), g_nodes, g_nodeCount * sizeof(NodeConfig)); DATA_BLOB in = {sz, (BYTE*)buf}, out; if (CryptProtectData(&in, L"XLinkV4", NULL, NULL, NULL, 0, &out)) { FILE* f = fopen(p, "wb"); if (f) { fwrite(out.pbData, 1, out.cbData, f); fclose(f); } LocalFree(out.pbData); } free(buf); }
-void LoadConfig() { char p[SAFE_PATH_LEN]; snprintf(p, SAFE_PATH_LEN, "%s\\xlink_config.dat", g_exeDir); FILE* f = fopen(p, "rb"); if (!f) return; fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET); if (sz <= 0) { fclose(f); return; } char* buf = (char*)malloc(sz); fread(buf, 1, sz, f); fclose(f); DATA_BLOB in = {(DWORD)sz, (BYTE*)buf}, out; if (CryptUnprotectData(&in, NULL, NULL, NULL, NULL, 0, &out)) { if (out.cbData > sizeof(int)) { memcpy(&g_nodeCount, out.pbData, sizeof(int)); if (g_nodeCount > 0 && g_nodeCount <= MAX_NODES) { memcpy(g_nodes, out.pbData + sizeof(int), g_nodeCount * sizeof(NodeConfig)); } else { g_nodeCount = 0; } } LocalFree(out.pbData); } free(buf); for (int i = 0; i < g_nodeCount; i++) { g_nodes[i].isRunning = FALSE; } memset(g_engineStatuses, 0, sizeof(g_engineStatuses)); }
+void LoadConfig() {
+    char p[SAFE_PATH_LEN];
+    snprintf(p, SAFE_PATH_LEN, "%s\\xlink_config.dat", g_exeDir);
+    
+    FILE* f = fopen(p, "rb");
+    
+    // === 修改点 1：将原来的 "if (!f) return;" 替换为如下逻辑 ===
+    if (f) {
+        // --- 如果文件存在，执行读取和解密 ---
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        
+        if (sz > 0) {
+            char* buf = (char*)malloc(sz);
+            if (buf) {
+                fread(buf, 1, sz, f);
+                
+                DATA_BLOB in = {(DWORD)sz, (BYTE*)buf}, out;
+                if (CryptUnprotectData(&in, NULL, NULL, NULL, NULL, 0, &out)) {
+                    if (out.cbData > sizeof(int)) {
+                        memcpy(&g_nodeCount, out.pbData, sizeof(int));
+                        // 简单的安全检查
+                        if (g_nodeCount < 0 || g_nodeCount > MAX_NODES) {
+                            g_nodeCount = 0;
+                        } else {
+                            memcpy(g_nodes, out.pbData + sizeof(int), g_nodeCount * sizeof(NodeConfig));
+                        }
+                    }
+                    LocalFree(out.pbData);
+                }
+                free(buf);
+            }
+        }
+        fclose(f);
+    } else {
+        // --- 修改点 2：如果文件不存在，初始化为默认空状态 ---
+        g_nodeCount = 0;
+        // 这里可以选择弹个窗提示，也可以默默使用默认配置
+        // MessageBoxA(NULL, "未找到配置，使用默认设置。", "提示", MB_OK); 
+    }
+
+    // === 修改点 3：确保无论文件是否存在，这些初始化代码都会执行 ===
+    for (int i = 0; i < g_nodeCount; i++) {
+        g_nodes[i].isRunning = FALSE;
+    }
+    memset(g_engineStatuses, 0, sizeof(g_engineStatuses));
+}
+
 void AppendLog(const char* t) { if (!IsWindow(hLogEdit)) return; int len = GetWindowTextLengthA(hLogEdit); if (len > 100000) { SendMessageA(hLogEdit, EM_SETSEL, 0, 50000); SendMessageA(hLogEdit, EM_REPLACESEL, 0, (LPARAM)"[... 日志已截断 ...]\r\n"); } len = GetWindowTextLengthA(hLogEdit); SendMessageA(hLogEdit, EM_SETSEL, len, len); SendMessageA(hLogEdit, EM_REPLACESEL, 0, (LPARAM)t); }
 void AppendLogAsync(const char* t) { char* m = _strdup(t); if (m) { PostMessage(hMainWindow, WM_APPEND_LOG, 0, (LPARAM)m); } }
 void Utf8ToAnsi(const char* utf8, char* ansi, int ansiLen) { int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0); if (wide_len == 0) { strncpy(ansi, utf8, ansiLen - 1); ansi[ansiLen - 1] = '\0'; return; } WCHAR* wide_buf = (WCHAR*)malloc(wide_len * sizeof(WCHAR)); if (!wide_buf) return; MultiByteToWideChar(CP_UTF8, 0, utf8, -1, wide_buf, wide_len); WideCharToMultiByte(CP_ACP, 0, wide_buf, -1, ansi, ansiLen, NULL, NULL); free(wide_buf); }
